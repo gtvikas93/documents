@@ -1,0 +1,109 @@
+package com.example.sonarautofix;
+
+import com.intellij.openapi.actionSystem.AnAction;
+import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.command.WriteCommandAction;
+import com.intellij.openapi.editor.Document;
+import com.intellij.openapi.editor.Editor;
+import com.intellij.openapi.editor.EditorFactory;
+import com.intellij.openapi.fileEditor.FileDocumentManager;
+import com.intellij.openapi.project.Project;
+import com.intellij.openapi.ui.Messages;
+import org.jetbrains.annotations.NotNull;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.Scanner;
+
+public class SonarAutoFixAction extends AnAction {
+    
+    private static final String SONAR_API_URL = "http://your-sonarqube-server/api/issues/search?componentKeys=";
+    private static final String GITHUB_COPILOT_API = "https://api.github.com/copilot/ask";
+    
+    @Override free
+    public void actionPerformed(@NotNull AnActionEvent event) {
+        Project project = event.getProject();
+        if (project == null) return;
+        
+        Editor editor = EditorFactory.getInstance().getEditors(EditorFactory.getInstance().getDocument(event.getDataContext()))[0];
+        if (editor == null) {
+            Messages.showErrorDialog("No active editor found.", "Error");
+            return;
+        }
+
+        Document document = editor.getDocument();
+        String filePath = FileDocumentManager.getInstance().getFile(document).getPath();
+        String className = extractClassName(filePath);
+
+        try {
+            JSONArray sonarIssues = fetchSonarQubeIssues(className);
+            if (sonarIssues.length() == 0) {
+                Messages.showInfoMessage("No SonarQube issues found.", "Info");
+                return;
+            }
+
+            String updatedClassCode = getCopilotSuggestion(document.getText(), sonarIssues);
+            if (updatedClassCode != null) {
+                applyFixes(document, updatedClassCode, project);
+                triggerSonarQubeAnalysis(className);
+            }
+        } catch (IOException e) {
+            Messages.showErrorDialog("Error fetching SonarQube issues: " + e.getMessage(), "Error");
+        }
+    }
+
+    private String extractClassName(String filePath) {
+        return filePath.substring(filePath.lastIndexOf("/") + 1).replace(".java", "");
+    }
+
+    private JSONArray fetchSonarQubeIssues(String className) throws IOException {
+        URL url = new URL(SONAR_API_URL + className);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setRequestProperty("Authorization", "Bearer YOUR_SONARQUBE_TOKEN");
+        
+        Scanner scanner = new Scanner(conn.getInputStream(), StandardCharsets.UTF_8);
+        String response = scanner.useDelimiter("\\A").next();
+        scanner.close();
+        
+        JSONObject jsonResponse = new JSONObject(response);
+        return jsonResponse.getJSONArray("issues");
+    }
+
+    private String getCopilotSuggestion(String classCode, JSONArray sonarIssues) throws IOException {
+        JSONObject requestJson = new JSONObject();
+        requestJson.put("prompt", "Fix the following issues in this Java class:\n" + sonarIssues.toString() + "\n" + classCode);
+        
+        HttpURLConnection conn = (HttpURLConnection) new URL(GITHUB_COPILOT_API).openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/json");
+        conn.setDoOutput(true);
+        
+        conn.getOutputStream().write(requestJson.toString().getBytes(StandardCharsets.UTF_8));
+        
+        Scanner scanner = new Scanner(conn.getInputStream(), StandardCharsets.UTF_8);
+        String response = scanner.useDelimiter("\\A").next();
+        scanner.close();
+        
+        JSONObject jsonResponse = new JSONObject(response);
+        return jsonResponse.getString("suggestion");
+    }
+
+    private void applyFixes(Document document, String newContent, Project project) {
+        WriteCommandAction.runWriteCommandAction(project, () -> {
+            document.setText(newContent);
+        });
+    }
+
+    private void triggerSonarQubeAnalysis(String className) throws IOException {
+        URL url = new URL("http://your-sonarqube-server/api/project_analyses/create?component=" + className);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Authorization", "Bearer YOUR_SONARQUBE_TOKEN");
+        conn.getResponseCode();
+    }
+}
