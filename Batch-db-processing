@@ -1,0 +1,201 @@
+// DemoApplication.java
+package com.example.demo;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class DemoApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(DemoApplication.class, args);
+    }
+}
+
+// model/Message.java
+package com.example.demo.model;
+
+import java.time.LocalDateTime;
+
+public class Message {
+    private String id;
+    private String content;
+    private LocalDateTime timestamp;
+
+    public Message() {}
+
+    public Message(String id, String content, LocalDateTime timestamp) {
+        this.id = id;
+        this.content = content;
+        this.timestamp = timestamp;
+    }
+
+    // Getters and Setters
+}
+
+// db/MessageRepository.java
+package com.example.demo.db;
+
+import com.example.demo.model.Message;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
+
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.util.List;
+
+@Repository
+public class MessageRepository {
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    public void batchInsert(List<Message> messages) {
+        jdbcTemplate.batchUpdate("INSERT INTO messages (id, content, timestamp) VALUES (?, ?, ?)",
+            new BatchPreparedStatementSetter() {
+                public void setValues(PreparedStatement ps, int i) throws SQLException {
+                    Message msg = messages.get(i);
+                    ps.setString(1, msg.getId());
+                    ps.setString(2, msg.getContent());
+                    ps.setTimestamp(3, Timestamp.valueOf(msg.getTimestamp()));
+                }
+                public int getBatchSize() {
+                    return messages.size();
+                }
+            });
+    }
+}
+
+// redis/RedisService.java
+package com.example.demo.redis;
+
+import com.example.demo.model.Message;
+import com.google.gson.Gson;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+public class RedisService {
+
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+
+    private static final String REDIS_KEY = "buffered-messages";
+    private final Gson gson = new Gson();
+
+    public void saveToRedis(Message message) {
+        String json = gson.toJson(message);
+        redisTemplate.opsForList().rightPush(REDIS_KEY, json);
+    }
+
+    public List<Message> getBatchFromRedis(int batchSize) {
+        List<String> batch = redisTemplate.opsForList().range(REDIS_KEY, 0, batchSize - 1);
+        return batch == null ? List.of() :
+            batch.stream()
+                .map(json -> gson.fromJson(json, Message.class))
+                .collect(Collectors.toList());
+    }
+
+    public void removeBatchFromRedis(int batchSize) {
+        for (int i = 0; i < batchSize; i++) {
+            redisTemplate.opsForList().leftPop(REDIS_KEY);
+        }
+    }
+
+    public long getRedisBufferSize() {
+        return redisTemplate.opsForList().size(REDIS_KEY);
+    }
+}
+
+// buffer/BufferManager.java
+package com.example.demo.buffer;
+
+import com.example.demo.db.MessageRepository;
+import com.example.demo.model.Message;
+import com.example.demo.redis.RedisService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+
+@Component
+public class BufferManager {
+
+    @Autowired
+    private RedisService redisService;
+
+    @Autowired
+    private MessageRepository messageRepository;
+
+    private final int batchSize = 1000;
+
+    @Scheduled(fixedRate = 30000)
+    public void flushToDb() {
+        List<Message> messages = redisService.getBatchFromRedis(batchSize);
+        if (!messages.isEmpty()) {
+            try {
+                messageRepository.batchInsert(messages);
+                redisService.removeBatchFromRedis(messages.size());
+                System.out.println("Flushed " + messages.size() + " messages to DB.");
+            } catch (Exception e) {
+                System.err.println("DB insert failed, keeping Redis buffer.");
+            }
+        }
+    }
+}
+
+// kafka/KafkaConsumerService.java
+package com.example.demo.kafka;
+
+import com.example.demo.model.Message;
+import com.example.demo.redis.RedisService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Service
+public class KafkaConsumerService {
+
+    @Autowired
+    private RedisService redisService;
+
+    @KafkaListener(topics = "messages-topic", groupId = "consumer-group")
+    public void consume(String payload) {
+        Message msg = new Message(UUID.randomUUID().toString(), payload, LocalDateTime.now());
+        redisService.saveToRedis(msg);
+    }
+}
+
+// resources/application.yml
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/messages_db
+    username: root
+    password: root
+  redis:
+    host: localhost
+    port: 6379
+
+kafka:
+  bootstrap-servers: localhost:9092
+  topic: messages-topic
+
+# Enable scheduling
+enable:
+  scheduling: true
+
+// schema.sql (to initialize DB)
+CREATE TABLE IF NOT EXISTS messages (
+  id VARCHAR(36) PRIMARY KEY,
+  content TEXT NOT NULL,
+  timestamp DATETIME NOT NULL
+);
