@@ -1,0 +1,33 @@
+server:
+  port: 3001
+
+spring:
+  application:
+    name: chat-service
+
+session:
+  timeout:
+    minutes: 30
+  max:
+    messages: 100
+
+logging:
+  level:
+    com.wellsfargo.chat: DEBUG
+
+chat:
+  session:
+    timeout-minutes: 5
+    max-messages: 20
+  llm:
+    api-url: ${LLM_API_URL:http://localhost:8080/api/llm}
+    api-key: ${LLM_API_KEY:your-api-key}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always 
