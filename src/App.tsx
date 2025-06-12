@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { sendMessage, ChatMessage, initializeSession, signOut } from './services/chatService';
 
@@ -7,6 +7,7 @@ function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const initSession = async () => {
@@ -18,6 +19,13 @@ function App() {
     };
     initSession();
   }, []);
+
+  // Auto-scroll to latest message
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
@@ -135,6 +143,7 @@ function App() {
                   <div className="message-content">Typing...</div>
                 </div>
               )}
+              <div ref={messagesEndRef} />
             </div>
             <div className="chat-input">
               <input
