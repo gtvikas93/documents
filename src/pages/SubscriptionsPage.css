@@ -1,0 +1,22 @@
+.subscriptions-page {
+  min-height: 100vh;
+  background-color: var(--wells-fargo-light-gray);
+}
+
+.page-header {
+  background-color: var(--wells-fargo-white);
+  padding: 1.5rem 2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.page-header h1 {
+  margin: 0;
+  color: var(--wells-fargo-red);
+  font-size: 1.75rem;
+}
+
+.page-content {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 2rem;
+} 
