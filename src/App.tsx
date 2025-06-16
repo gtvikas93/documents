@@ -39,6 +39,13 @@ function App() {
     initSession();
   }, []);
 
+  // Auto-scroll to latest message
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
 
