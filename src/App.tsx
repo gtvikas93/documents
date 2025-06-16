@@ -1,17 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
-import { sendMessage, ChatMessage, initializeSession, signOut } from './services/chatService';
+import { sendMessage, ChatMessage, initializeSession, signOut, submitFeedback, SatisfactionFeedback, currentSessionId } from './services/chatService';
 
 function App() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [lastUserMessage, setLastUserMessage] = useState('');
+  const [feedbackReason, setFeedbackReason] = useState('');
+  const [showReasonInput, setShowReasonInput] = useState(false);
+  const [showThankYou, setShowThankYou] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, showFeedback, showReasonInput, showThankYou]);
 
   useEffect(() => {
     const initSession = async () => {
       try {
-        await initializeSession();
+        // In a real application, these values would come from your authentication system
+        const userInfo = {
+          customerId: 'CUST123',
+          ecn: 'ECN123',
+          xaId: 'XA123'
+        };
+        await initializeSession(userInfo);
       } catch (error) {
         console.error('Failed to initialize chat session:', error);
       }
@@ -29,6 +49,7 @@ function App() {
       timestamp: new Date().toISOString(),
     };
     setMessages(prev => [...prev, userMessage]);
+    setLastUserMessage(inputMessage);
     setInputMessage('');
     setIsLoading(true);
 
@@ -36,6 +57,10 @@ function App() {
       // Send message to backend and handle streaming response
       await sendMessage(inputMessage, (botResponse) => {
         setMessages(prev => [...prev, botResponse]);
+        // Show feedback UI after the last bot message
+        if (botResponse.message.includes('successfully') || botResponse.message.includes('completed')) {
+          setShowFeedback(true);
+        }
       });
     } catch (error) {
       console.error('Error in chat:', error);
@@ -58,6 +83,42 @@ function App() {
       await initializeSession();
     } catch (error) {
       console.error('Error signing out:', error);
+    }
+  };
+
+  const handleFeedback = async (satisfactory: boolean) => {
+    if (!satisfactory) {
+      setShowReasonInput(true);
+      return;
+    }
+    submitFeedbackWithReason(satisfactory);
+  };
+
+  const submitFeedbackWithReason = async (satisfactory: boolean) => {
+    try {
+      const feedback: SatisfactionFeedback = {
+        customerId: '', // Will be filled from session
+        ecn: '', // Will be filled from session
+        xaId: '', // Will be filled from session
+        originalPromptMessage: lastUserMessage,
+        sessionId: currentSessionId || '',
+        timestamp: new Date().toISOString(),
+        satisfactoryMessage: satisfactory ? 'Yes' : 'No',
+        reason: satisfactory ? undefined : feedbackReason
+      };
+      await submitFeedback(feedback);
+      setShowFeedback(false);
+      setShowReasonInput(false);
+      setFeedbackReason('');
+      
+      // Show thank you message
+      setShowThankYou(true);
+      // Hide thank you message after 3 seconds
+      setTimeout(() => {
+        setShowThankYou(false);
+      }, 3000);
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
     }
   };
 
@@ -135,6 +196,37 @@ function App() {
                   <div className="message-content">Typing...</div>
                 </div>
               )}
+              {showFeedback && (
+                <div className="feedback-container">
+                  <p>Was this response helpful?</p>
+                  <div className="feedback-buttons">
+                    <button onClick={() => handleFeedback(true)}>Yes</button>
+                    <button onClick={() => handleFeedback(false)}>No</button>
+                  </div>
+                  {showReasonInput && (
+                    <div className="feedback-reason">
+                      <textarea
+                        value={feedbackReason}
+                        onChange={(e) => setFeedbackReason(e.target.value)}
+                        placeholder="Please tell us why this response wasn't helpful..."
+                        rows={3}
+                      />
+                      <button 
+                        onClick={() => submitFeedbackWithReason(false)}
+                        disabled={!feedbackReason.trim()}
+                      >
+                        Submit Feedback
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              {showThankYou && (
+                <div className="thank-you-message">
+                  Thank you for your feedback!
+                </div>
+              )}
+              <div ref={messagesEndRef} />
             </div>
             <div className="chat-input">
               <input

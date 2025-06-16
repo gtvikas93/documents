@@ -2,8 +2,10 @@ package com.wellsfargo.chat.controller;
 
 import com.wellsfargo.chat.model.ChatMessage;
 import com.wellsfargo.chat.model.ChatSession;
+import com.wellsfargo.chat.model.SatisfactionFeedback;
 import com.wellsfargo.chat.service.ChatSessionService;
 import com.wellsfargo.chat.service.LLMService;
+import com.wellsfargo.chat.service.SatisfactionService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,19 +27,29 @@ public class ChatController {
     private static final Logger logger = LoggerFactory.getLogger(ChatController.class);
     private final ChatSessionService chatSessionService;
     private final LLMService llmService;
+    private final SatisfactionService satisfactionService;
     private final ExecutorService executorService;
     private final Map<String, Map<String, String>> sessionData;
 
-    public ChatController(ChatSessionService chatSessionService, LLMService llmService) {
+    public ChatController(ChatSessionService chatSessionService, LLMService llmService, SatisfactionService satisfactionService) {
         this.chatSessionService = chatSessionService;
         this.llmService = llmService;
+        this.satisfactionService = satisfactionService;
         this.executorService = Executors.newCachedThreadPool();
         this.sessionData = new HashMap<>();
     }
 
     @PostMapping("/session")
-    public ResponseEntity<ChatSession> createSession() {
+    public ResponseEntity<ChatSession> createSession(@RequestBody(required = false) Map<String, String> userInfo) {
         ChatSession session = chatSessionService.createSession();
+        
+        // Set user information if provided
+        if (userInfo != null) {
+            session.setCustomerId(userInfo.get("customerId"));
+            session.setEcn(userInfo.get("ecn"));
+            session.setXaId(userInfo.get("xaId"));
+        }
+        
         sessionData.put(session.getSessionId(), new HashMap<>());
         return ResponseEntity.ok(session);
     }
@@ -203,6 +215,27 @@ public class ChatController {
         chatSessionService.invalidateSession(sessionId);
         sessionData.remove(sessionId);
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/feedback")
+    public ResponseEntity<Void> submitFeedback(@RequestBody SatisfactionFeedback feedback) {
+        try {
+            // Get the session to retrieve user information
+            ChatSession session = chatSessionService.getSession(feedback.getSessionId());
+            if (session != null) {
+                // Use session's user information if not provided in feedback
+                if (feedback.getCustomerId() == null) feedback.setCustomerId(session.getCustomerId());
+                if (feedback.getEcn() == null) feedback.setEcn(session.getEcn());
+                if (feedback.getXaId() == null) feedback.setXaId(session.getXaId());
+            }
+            
+            feedback.setTimestamp(new Date());
+            satisfactionService.saveFeedback(feedback);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            logger.error("Error saving feedback: {}", e.getMessage());
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     // Dummy LLM result class

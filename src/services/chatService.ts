@@ -10,7 +10,18 @@ export interface ChatMessage {
   sessionId?: string;
 }
 
-let currentSessionId: string | null = null;
+export interface SatisfactionFeedback {
+  customerId: string;
+  ecn: string;
+  xaId: string;
+  originalPromptMessage: string;
+  sessionId: string;
+  timestamp: string;
+  satisfactoryMessage: string;
+  reason?: string;
+}
+
+export let currentSessionId: string | null = null;
 
 // Helper function to manage cookies
 const cookieManager = {
@@ -34,7 +45,13 @@ const cookieManager = {
   }
 };
 
-export const initializeSession = async (): Promise<string> => {
+interface UserInfo {
+  customerId: string;
+  ecn: string;
+  xaId: string;
+}
+
+export const initializeSession = async (userInfo?: UserInfo): Promise<string> => {
   try {
     // Check if we have a session ID in cookies
     const existingSessionId = cookieManager.getCookie(SESSION_COOKIE_NAME);
@@ -43,7 +60,7 @@ export const initializeSession = async (): Promise<string> => {
       return existingSessionId;
     }
 
-    const response = await axios.post(`${API_URL}/session`);
+    const response = await axios.post(`${API_URL}/session`, userInfo);
     const newSessionId = response.data.sessionId;
     if (!newSessionId) {
       throw new Error('Failed to initialize session');
@@ -145,4 +162,13 @@ export const signOut = async (): Promise<void> => {
 export const clearSession = () => {
   currentSessionId = null;
   cookieManager.deleteCookie(SESSION_COOKIE_NAME);
+};
+
+export const submitFeedback = async (feedback: SatisfactionFeedback): Promise<void> => {
+  try {
+    await axios.post(`${API_URL}/feedback`, feedback);
+  } catch (error) {
+    console.error('Error submitting feedback:', error);
+    throw error;
+  }
 }; 

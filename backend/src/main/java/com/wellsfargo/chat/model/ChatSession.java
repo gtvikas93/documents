@@ -12,6 +12,9 @@ public class ChatSession {
     private Date lastAccessedAt;
     private List<ChatMessage> messages;
     private boolean active;
+    private String customerId;
+    private String ecn;
+    private String xaId;
 
     public ChatSession() {
         this.messages = new ArrayList<>();

@@ -32,4 +32,8 @@ management:
     health:
       show-details: always
 
+satisfaction:
+  excel:
+    path: feedback.xlsx
+
 
