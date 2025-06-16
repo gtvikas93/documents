@@ -1,0 +1,86 @@
+.subscriptions-container {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.subscriptions-container h2 {
+  color: var(--wells-fargo-gray);
+  margin-bottom: 2rem;
+  font-size: 1.5rem;
+}
+
+.subscriptions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.subscription-card {
+  background-color: var(--wells-fargo-white);
+  border: 1px solid var(--wells-fargo-border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.subscription-card.active {
+  background-color: var(--wells-fargo-dark-gray);
+  color: var(--wells-fargo-white);
+}
+
+.subscription-card h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.channels-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.channel-tag {
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background-color: var(--wells-fargo-light-gray);
+  color: var(--wells-fargo-gray);
+  border: 1px solid var(--wells-fargo-border);
+  transition: all 0.3s ease;
+}
+
+.channel-tag.active {
+  background-color: #e6f4ea;
+  color: #1e7e34;
+  border-color: #1e7e34;
+}
+
+.subscription-card.active .channel-tag {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--wells-fargo-white);
+  border-color: var(--wells-fargo-white);
+}
+
+.subscription-card.active .channel-tag.active {
+  background-color: #1e7e34;
+  color: var(--wells-fargo-white);
+  border-color: #1e7e34;
+}
+
+.loading, .error {
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.1rem;
+  color: var(--wells-fargo-gray);
+}
+
+.error {
+  color: #dc3545;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 8px;
+  padding: 1rem;
+} 

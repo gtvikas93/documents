@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { sendMessage, ChatMessage, initializeSession, signOut, submitFeedback, SatisfactionFeedback, currentSessionId } from './services/chatService';
+import Subscriptions from './components/Subscriptions';
 
 function App() {
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -130,129 +131,132 @@ function App() {
   };
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <div className="header-left">
-          <h1>Wells Fargo Online Banking</h1>
-        </div>
-        <button className="sign-out-button" onClick={handleSignOut}>
-          Sign Out
-        </button>
-      </header>
-
-      <main className="app-main">
-        <div className="dashboard">
-          <div className="balance-card">
-            <h2>Available Balance</h2>
-            <div className="balance-amount">$12,345.67</div>
-            <div className="balance-details">
-              <div className="detail-item">
-                <span>Checking Account</span>
-                <span>$8,765.43</span>
-              </div>
-              <div className="detail-item">
-                <span>Savings Account</span>
-                <span>$3,580.24</span>
-              </div>
-            </div>
+    <div className="App">
+      <Subscriptions />
+      <div className="app">
+        <header className="app-header">
+          <div className="header-left">
+            <h1>Wells Fargo Online Banking</h1>
           </div>
-
-          <div className="recent-transactions">
-            <h2>Recent Transactions</h2>
-            <div className="transaction-list">
-              <div className="transaction-item">
-                <div className="transaction-info">
-                  <div className="transaction-title">Grocery Store</div>
-                  <div className="transaction-date">Today, 2:30 PM</div>
-                </div>
-                <div className="transaction-amount" data-prefix="-$">45.67</div>
-              </div>
-              <div className="transaction-item">
-                <div className="transaction-info">
-                  <div className="transaction-title">Salary Deposit</div>
-                  <div className="transaction-date">Yesterday, 9:00 AM</div>
-                </div>
-                <div className="transaction-amount" data-prefix="+$">3,500.00</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-
-      <div className={`chat-container ${isChatOpen ? 'open' : ''}`}>
-        <div className="chat-header" onClick={() => setIsChatOpen(!isChatOpen)}>
-          <h3>Chat Support</h3>
-          <button className="toggle-chat">
-            {isChatOpen ? '▼' : '▲'}
+          <button className="sign-out-button" onClick={handleSignOut}>
+            Sign Out
           </button>
-        </div>
-        
-        {isChatOpen && (
-          <div className="chat-content">
-            <div className="messages">
-              {messages.map((message, index) => (
-                <div key={index} className={`message ${message.sender}`}>
-                  <div className="message-content">{message.message}</div>
-                  <div className="message-timestamp">
-                    {new Date(message.timestamp).toLocaleTimeString()}
-                  </div>
+        </header>
+
+        <main className="app-main">
+          <div className="dashboard">
+            <div className="balance-card">
+              <h2>Available Balance</h2>
+              <div className="balance-amount">$12,345.67</div>
+              <div className="balance-details">
+                <div className="detail-item">
+                  <span>Checking Account</span>
+                  <span>$8,765.43</span>
                 </div>
-              ))}
-              {isLoading && (
-                <div className="message bot">
-                  <div className="message-content">Typing...</div>
+                <div className="detail-item">
+                  <span>Savings Account</span>
+                  <span>$3,580.24</span>
                 </div>
-              )}
-              {showFeedback && (
-                <div className="feedback-container">
-                  <p>Was this response helpful?</p>
-                  <div className="feedback-buttons">
-                    <button onClick={() => handleFeedback(true)}>Yes</button>
-                    <button onClick={() => handleFeedback(false)}>No</button>
-                  </div>
-                  {showReasonInput && (
-                    <div className="feedback-reason">
-                      <textarea
-                        value={feedbackReason}
-                        onChange={(e) => setFeedbackReason(e.target.value)}
-                        placeholder="Please tell us why this response wasn't helpful..."
-                        rows={3}
-                      />
-                      <button 
-                        onClick={() => submitFeedbackWithReason(false)}
-                        disabled={!feedbackReason.trim()}
-                      >
-                        Submit Feedback
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-              {showThankYou && (
-                <div className="thank-you-message">
-                  Thank you for your feedback!
-                </div>
-              )}
-              <div ref={messagesEndRef} />
+              </div>
             </div>
-            <div className="chat-input">
-              <input
-                type="text"
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Type your message..."
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                disabled={isLoading}
-              />
-              <button 
-                onClick={handleSendMessage}
-                disabled={isLoading}
-              >
-                Send
-              </button>
+
+            <div className="recent-transactions">
+              <h2>Recent Transactions</h2>
+              <div className="transaction-list">
+                <div className="transaction-item">
+                  <div className="transaction-info">
+                    <div className="transaction-title">Grocery Store</div>
+                    <div className="transaction-date">Today, 2:30 PM</div>
+                  </div>
+                  <div className="transaction-amount" data-prefix="-$">45.67</div>
+                </div>
+                <div className="transaction-item">
+                  <div className="transaction-info">
+                    <div className="transaction-title">Salary Deposit</div>
+                    <div className="transaction-date">Yesterday, 9:00 AM</div>
+                  </div>
+                  <div className="transaction-amount" data-prefix="+$">3,500.00</div>
+                </div>
+              </div>
             </div>
           </div>
-        )}
+        </main>
+
+        <div className={`chat-container ${isChatOpen ? 'open' : ''}`}>
+          <div className="chat-header" onClick={() => setIsChatOpen(!isChatOpen)}>
+            <h3>Chat Support</h3>
+            <button className="toggle-chat">
+              {isChatOpen ? '▼' : '▲'}
+            </button>
+          </div>
+          
+          {isChatOpen && (
+            <div className="chat-content">
+              <div className="messages">
+                {messages.map((message, index) => (
+                  <div key={index} className={`message ${message.sender}`}>
+                    <div className="message-content">{message.message}</div>
+                    <div className="message-timestamp">
+                      {new Date(message.timestamp).toLocaleTimeString()}
+                    </div>
+                  </div>
+                ))}
+                {isLoading && (
+                  <div className="message bot">
+                    <div className="message-content">Typing...</div>
+                  </div>
+                )}
+                {showFeedback && (
+                  <div className="feedback-container">
+                    <p>Was this response helpful?</p>
+                    <div className="feedback-buttons">
+                      <button onClick={() => handleFeedback(true)}>Yes</button>
+                      <button onClick={() => handleFeedback(false)}>No</button>
+                    </div>
+                    {showReasonInput && (
+                      <div className="feedback-reason">
+                        <textarea
+                          value={feedbackReason}
+                          onChange={(e) => setFeedbackReason(e.target.value)}
+                          placeholder="Please tell us why this response wasn't helpful..."
+                          rows={3}
+                        />
+                        <button 
+                          onClick={() => submitFeedbackWithReason(false)}
+                          disabled={!feedbackReason.trim()}
+                        >
+                          Submit Feedback
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {showThankYou && (
+                  <div className="thank-you-message">
+                    Thank you for your feedback!
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+              <div className="chat-input">
+                <input
+                  type="text"
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  placeholder="Type your message..."
+                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                  disabled={isLoading}
+                />
+                <button 
+                  onClick={handleSendMessage}
+                  disabled={isLoading}
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
